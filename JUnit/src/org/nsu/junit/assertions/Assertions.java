@@ -24,7 +24,7 @@ public class Assertions {
 
     public static void assertTrue(String message, boolean condition) {
         if (!condition) {
-            failMessage(message);
+            failMessage(message + " Condition is not true!");
         }
     }
 
@@ -34,7 +34,7 @@ public class Assertions {
 
     public static void assertFalse(String message, boolean condition) {
         if (condition) {
-            failMessage(message);
+            failMessage(message + " Condition is not false!");
         }
     }
 
