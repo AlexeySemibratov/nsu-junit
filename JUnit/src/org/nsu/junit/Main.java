@@ -30,9 +30,7 @@ public class Main {
 		String[] tests = new String[args.length-1];
         System.arraycopy(args, 1, tests, 0, tests.length);
 
-		int finalN = n;
-
-        TestRunner runner = new TestRunner(2, tests);
+        TestRunner runner = new TestRunner(n, tests);
         long startTime = System.nanoTime();
         runner.start();
         try {
