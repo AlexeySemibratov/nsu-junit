@@ -15,11 +15,11 @@ public class Main {
         }
 
         TestRunner runner = new TestRunner(threadCount);
+        long startTime = System.nanoTime();
         runner.start();
         for (String test: testNames) {
             runner.addTestClass(test);
         }
-        long startTime = System.nanoTime();
         try {
             runner.joinAllTestThreads();
         } catch (InterruptedException e) {
