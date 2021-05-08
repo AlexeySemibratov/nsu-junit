@@ -2,10 +2,6 @@ package org.nsu.junit;
 
 import org.nsu.junit.common.Config;
 import org.nsu.junit.common.TestRunner;
-import org.nsu.junit.tests.Test1;
-import org.nsu.junit.tests.Test2;
-import org.nsu.junit.tests.Test3;
-
 
 public class Main {
 

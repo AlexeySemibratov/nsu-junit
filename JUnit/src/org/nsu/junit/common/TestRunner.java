@@ -121,7 +121,7 @@ public class TestRunner {
             }
         }
     }
-    
+
     private boolean runMethodsOnInstance(List<Method> methods, Object instance, String message) {
         if (methods == null || methods.isEmpty()) return true;
 
