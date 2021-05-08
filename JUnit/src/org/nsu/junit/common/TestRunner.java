@@ -3,48 +3,43 @@ package org.nsu.junit.common;
 import org.nsu.junit.common.annotations.After;
 import org.nsu.junit.common.annotations.Before;
 import org.nsu.junit.common.annotations.Test;
-import org.nsu.junit.common.exceptions.TestException;
 import org.nsu.junit.common.util.Utils;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class TestRunner {
-
-    private final List<TestResult> results = new ArrayList<>();
     private final TestsQueue testsQueue;
     private final Thread[] threads;
 
-    public TestRunner(int threadCount, String[] testNames) {
-        testsQueue = new TestsQueue();
-        for (String e : testNames) {
-            testsQueue.putTest(e);
+    public volatile AtomicInteger totalTest = new AtomicInteger(0);
+    public volatile AtomicInteger failedTest = new AtomicInteger(0);
+
+    public TestRunner(int threadCount) throws IllegalArgumentException {
+        if (threadCount <= 0) {
+            throw new IllegalArgumentException("The number of threads must be a positive integer");
         }
+
+        testsQueue = new TestsQueue();
 
         threads = new Thread[threadCount];
         for (int i = 0; i < threadCount; i++) {
-            threads[i] = new Thread(testTask());
+            threads[i] = new Thread(new TestTask());
             threads[i].setName("testThread_" + i);
         }
     }
 
-    private Runnable testTask() {
-        return () -> {
-            while (!Thread.currentThread().isInterrupted()) {
-                try {
-                    Class<?> testClass = testsQueue.getTest();
-                    if (testClass != null) runTest(testClass);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }
-        };
+    public void addTestClass(String className) {
+        testsQueue.putTest(className);
     }
 
     public void start() {
         for (Thread thread : threads) {
-            thread.start();
+            if (!thread.isAlive()) {
+                thread.start();
+            }
         }
     }
 
@@ -55,8 +50,6 @@ public class TestRunner {
     }
 
     private void runTest(Class<?> testClass) {
-        if (testClass == null) return;
-
         List<Method> beforeMethods = Utils.getMethodsWithAnnotation(testClass, Before.class);
         List<Method> testMethods = Utils.getMethodsWithAnnotation(testClass, Test.class);
         List<Method> afterMethods = Utils.getMethodsWithAnnotation(testClass, After.class);
@@ -66,13 +59,13 @@ public class TestRunner {
 
     private void runTestList(
             Class<?> source,
-            List<Method> methods,
+            List<Method> testMethods,
             List<Method> beforeMethods,
             List<Method> afterMethods
     ) {
-        if (methods == null) return;
+        if (testMethods == null || testMethods.isEmpty()) return;
 
-        for (Method m : methods) {
+        for (Method m : testMethods) {
             if (Utils.methodHasIncompatibleAnnotations(m)) {
                 System.out.println("Test <" + m.getName() + "> can't be started because it has incompatible annotations: " +
                         Arrays.toString(m.getDeclaredAnnotations()));
@@ -81,60 +74,104 @@ public class TestRunner {
             TestResult result = new TestResult(source.getCanonicalName(), m.getName());
             result.setExecutionThread(Thread.currentThread().getName());
 
-            long startTime = System.nanoTime();
+            Object instance = null;
             try {
-                Object instance = source.getDeclaredConstructor().newInstance();
+                instance = source.getDeclaredConstructor().newInstance();
+            } catch (InstantiationException | NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+                e.printStackTrace();
+            }
+            long startTime = System.nanoTime();
 
-                if (!runMethodsOnInstance(beforeMethods, instance)) {
-                    throw new TestException("Exception in @Before method in " + source.getName());
-                }
-
-                m.invoke(instance);
-
-                if (!runMethodsOnInstance(afterMethods, instance)) {
-                    throw new TestException("Exception in @After method in " + source.getName());
+            try {
+                if (!runMethodsOnInstance(beforeMethods, instance, "Exception in @Before method:")) {
+                    return;
+                } else {
+                    m.invoke(instance);
                 }
             } catch (InvocationTargetException e) {
-                result.isFailed = true;
-
                 Test ann = m.getAnnotation(Test.class);
-                if (!(ann.expectedException() == e.getCause().getClass())) {
-                    result.setOptionalMessage(
-                            "Catch <" + e.getCause().getClass().getName() +
-                                    "> but expected <" +
-                                    ann.expectedException().getName() + ">. \n"
-                                    + e.getCause().getMessage()
-                    );
+                Class<?> expectedException = ann.expectedException();
+
+                if (expectedException == Test.DefaultException.class) {
+                    failTest(result, e.getCause().getMessage());
+                } else if (expectedException != e.getCause().getClass()) {
+                    String message = "Catch <" + e.getCause().getClass().getName() +
+                            "> but expected <" +
+                            expectedException.getName() + ">. \n"
+                            + e.getCause().getMessage();
+
+                    failTest(result, message);
                 } else {
                     result.setOptionalMessage(e.getCause().getMessage());
                 }
-
-            } catch (IllegalAccessException | IllegalArgumentException | InstantiationException | NoSuchMethodException e) {
+            } catch (IllegalAccessException | IllegalArgumentException e) {
                 e.printStackTrace();
-            } catch (TestException e) {
-                result.isFailed = true;
-                result.setOptionalMessage(e.getMessage());
             }
-            result.setExecuteTime(System.nanoTime() - startTime);
-            results.add(result);
+
+            totalTest.incrementAndGet();
+            if (result.isFailed) {
+                failedTest.incrementAndGet();
+            }
+            result.setExecutionTime(System.nanoTime() - startTime);
+
+            printResult(result);
+
+            if (!runMethodsOnInstance(afterMethods, instance, "Exception in @After method")) {
+                return;
+            }
         }
     }
-
-    private boolean runMethodsOnInstance(List<Method> methods, Object instance) {
-        if (methods == null) return true;
+    
+    private boolean runMethodsOnInstance(List<Method> methods, Object instance, String message) {
+        if (methods == null || methods.isEmpty()) return true;
 
         for (Method m : methods) {
             try {
                 m.invoke(instance);
             } catch (InvocationTargetException | IllegalAccessException e) {
+                printErrorMessage(m, message, e);
                 return false;
             }
         }
         return true;
     }
 
-    public List<TestResult> getResultsList() {
-        return results;
+    private void failTest(TestResult result, String message) {
+        result.isFailed = true;
+        result.setOptionalMessage(message);
     }
 
+    private void printErrorMessage(Method method, String message, Throwable throwable) {
+        synchronized (System.out) {
+            System.out.println(message);
+            System.out.println("Error while try to execute <" + method + ">");
+            if (throwable.getCause() != null) {
+                System.out.println("Cause: " + throwable.getCause().getMessage());
+            }
+        }
+    }
+
+    private void printResult(TestResult result) {
+        synchronized (System.out) {
+            if (result.isFailed || Config.SHOW_SUCCESSFUL_TESTS) {
+                System.out.println(result.formatToString());
+            }
+        }
+    }
+
+    private class TestTask implements Runnable {
+        @Override
+        public void run() {
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    Class<?> testClass = testsQueue.getTest();
+                    if (testClass != null) {
+                        runTest(testClass);
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+    }
 }

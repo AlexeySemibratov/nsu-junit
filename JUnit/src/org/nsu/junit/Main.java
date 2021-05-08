@@ -1,63 +1,78 @@
 package org.nsu.junit;
 
 import org.nsu.junit.common.Config;
-import org.nsu.junit.common.TestResult;
 import org.nsu.junit.common.TestRunner;
+import org.nsu.junit.tests.Test1;
+import org.nsu.junit.tests.Test2;
+import org.nsu.junit.tests.Test3;
 
-import java.util.List;
-import java.util.function.Predicate;
 
 public class Main {
 
+    private static int threadCount = 0;
+    private static String[] testNames;
+
     public static void main(String[] args) {
-		if(args == null || args.length == 0) {
-			printHelp();
-			System.exit(-1);
-		}
+        if (!parseArguments(args)) {
+            printHelp();
+            return;
+        }
 
-		int n = 0;
-		try {
-			n = Integer.parseInt(args[0]);
-		} catch (NumberFormatException e){
-			System.out.println("The argument <" + args[0] + "> must be an integer.");
-			System.exit(-1);
-		}
-		if(n<=0) {
-			System.out.println("[" + n + "] - Thread count must be positive integer.");
-			System.exit(-1);
-		}
-
-		String[] tests = new String[args.length-1];
-        System.arraycopy(args, 1, tests, 0, tests.length);
-
-        TestRunner runner = new TestRunner(n, tests);
-        long startTime = System.nanoTime();
+        TestRunner runner = new TestRunner(threadCount);
         runner.start();
+        for (String test: testNames) {
+            runner.addTestClass(test);
+        }
+        long startTime = System.nanoTime();
         try {
             runner.joinAllTestThreads();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        printResults(runner.getResultsList(), (System.nanoTime() - startTime) / 1000000);
+        System.out.println("Total tests: " + runner.totalTest);
+        System.out.println("Failed tests: " + runner.failedTest);
+        System.out.println("Total time: " + (System.nanoTime() - startTime) / 1000000 + " ms.");
     }
 
-    public static void printResults(List<TestResult> results, long totalTime) {
-        results.stream()
-                .filter(Predicate.not(x -> (!x.isFailed && !Config.SHOW_SUCCESSFUl_TESTS)))
-                .forEach(System.out::println);
+    private static boolean parseArguments(String[] args) {
+        if (args == null || args.length == 0) {
+            return false;
+        }
 
-        System.out.println("Total tests: " + results.size() +
-                ". Failed: " + results.stream().filter(x -> x.isFailed).count() +
-                "." + " Total time: " + totalTime + " ms.");
+        try {
+            threadCount = Integer.parseInt(args[0]);
+        } catch (NumberFormatException e) {
+            System.out.println("The argument <" + args[0] + "> must be an integer.");
+            return false;
+        }
+
+        int i = 1;
+        String command;
+        while ((i < args.length) && (command = args[i]).startsWith("-")) {
+            i++;
+            if ("pcf".equals(command)) {
+                Config.SHOW_SUCCESSFUL_TESTS = false;
+            } else if ("-et".equals(command)) {
+                Config.SHOW_EXECUTION_TIME = false;
+            } else if ("-eth".equals(command)) {
+                Config.SHOW_EXECUTION_THREAD = false;
+            } else {
+                System.out.println("Invalid command [" + command + "]");
+                return false;
+            }
+        }
+        testNames = new String[args.length-i];
+        System.arraycopy(args, i, testNames, 0, testNames.length);
+        return true;
     }
 
-    public static void printHelp() {
-        String help1 = "Invalid arguments. Use:";
-        String help2 = "n -- Thread count";
-        String help3 = "[className...] -- Class names";
-        System.out.println(help1);
-        System.out.println(help2);
-        System.out.println(help3);
+
+    private static void printHelp() {
+        System.out.println("n -- Thread count");
+        System.out.println("-pcf -- If you don't want to print successful tests");
+        System.out.println("-et -- If you don't want to print tests execution time");
+        System.out.println("-eth -- If you don't want to print tests execution thread");
+        System.out.println("[className...] -- Class names");
     }
 
 }

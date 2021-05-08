@@ -7,9 +7,20 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Используется для пометки тестируемых методов.
+ * Нельзя помечать одновременно с аннотациями {@link After}, {@link Before}.
+ */
 @Target({ ElementType.METHOD })
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Test {
-    Class<?> expectedException() default AssertionException.class;
+
+    /**
+     * Класс ожидаемого исключение.
+     * Если в результате выполнения теста будет выброшено другое исключение, то тест считается не пройденным.
+     */
+    Class<? extends Throwable> expectedException() default DefaultException.class;
+
+    class DefaultException extends Throwable {}
 }
 

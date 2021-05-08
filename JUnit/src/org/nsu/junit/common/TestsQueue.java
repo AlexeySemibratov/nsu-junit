@@ -17,7 +17,10 @@ public class TestsQueue {
 
     synchronized public Class<?> getTest() throws InterruptedException {
         if (testQueue.isEmpty()) {
-            throw new InterruptedException();
+            wait(250);
+            if (testQueue.isEmpty()) {
+                throw new InterruptedException();
+            }
         }
         Class<?> testClass = null;
         String className = testQueue.pollFirst();
