@@ -44,7 +44,7 @@ public class Assertions {
 
     public static void assertNotNull(Object e) {
         if (e == null) {
-            failMessage("Instanse is null");
+            failMessage("Instance is null");
         }
     }
 

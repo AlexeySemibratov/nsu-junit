@@ -46,7 +46,7 @@ public class Main {
         String command;
         while ((i < args.length) && (command = args[i]).startsWith("-")) {
             i++;
-            if (command.equals("pcf")) {
+            if (command.equals("-pcf")) {
                 Config.SHOW_SUCCESSFUL_TESTS = false;
             } else if (command.equals("-et")) {
                 Config.SHOW_EXECUTION_TIME = false;

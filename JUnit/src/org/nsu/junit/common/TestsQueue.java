@@ -27,7 +27,6 @@ public class TestsQueue {
         try {
             testClass = Class.forName(className);
         } catch (ClassNotFoundException e) {
-            System.out.println("Class: " + className + " not found.");
             e.printStackTrace();
         }
         return testClass;
