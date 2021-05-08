@@ -46,11 +46,11 @@ public class Main {
         String command;
         while ((i < args.length) && (command = args[i]).startsWith("-")) {
             i++;
-            if ("pcf".equals(command)) {
+            if (command.equals("pcf")) {
                 Config.SHOW_SUCCESSFUL_TESTS = false;
-            } else if ("-et".equals(command)) {
+            } else if (command.equals("-et")) {
                 Config.SHOW_EXECUTION_TIME = false;
-            } else if ("-eth".equals(command)) {
+            } else if (command.equals("-eth")) {
                 Config.SHOW_EXECUTION_THREAD = false;
             } else {
                 System.out.println("Invalid command [" + command + "]");
