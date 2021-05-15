@@ -56,7 +56,6 @@ public class TestRunner {
 
         runTestList(testClass, testMethods, beforeMethods, afterMethods);
     }
-
     private void runTestList(
             Class<?> source,
             List<Method> testMethods,
@@ -95,10 +94,12 @@ public class TestRunner {
                 if (expectedException == Test.DefaultException.class) {
                     failTest(result, e.getCause().getMessage());
                 } else if (expectedException != e.getCause().getClass()) {
-                    String message = "Catch <" + e.getCause().getClass().getName() +
+                    String message = "Catch <" +
+                            e.getCause().getClass().getName() +
                             "> but expected <" +
-                            expectedException.getName() + ">. \n"
-                            + e.getCause().getMessage();
+                            expectedException.getName() +
+                            ">. \n" +
+                            e.getCause().getMessage();
 
                     failTest(result, message);
                 } else {
@@ -146,7 +147,7 @@ public class TestRunner {
             System.out.println(message);
             System.out.println("Error while try to execute <" + method + ">");
             if (throwable.getCause() != null) {
-                System.out.println("Cause: " + throwable.getCause().getMessage());
+                throwable.getCause().printStackTrace(System.out);
             }
         }
     }
