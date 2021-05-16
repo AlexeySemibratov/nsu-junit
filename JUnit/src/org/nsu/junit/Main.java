@@ -14,7 +14,7 @@ public class Main {
             return;
         }
 
-        TestRunner runner = new TestRunner(threadCount);
+        TestRunner runner = new TestRunner(threadCount, testNames.length);
         long startTime = System.nanoTime();
         runner.start();
         for (String test: testNames) {
@@ -56,6 +56,10 @@ public class Main {
                 System.out.println("Invalid command [" + command + "]");
                 return false;
             }
+        }
+        if (i >= args.length) {
+            System.out.println("No class name arguments found");
+            return false;
         }
         testNames = new String[args.length-i];
         System.arraycopy(args, i, testNames, 0, testNames.length);

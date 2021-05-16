@@ -14,15 +14,16 @@ public class TestRunner {
     private final TestsQueue testsQueue;
     private final Thread[] threads;
 
-    public volatile AtomicInteger totalTest = new AtomicInteger(0);
-    public volatile AtomicInteger failedTest = new AtomicInteger(0);
+    public AtomicInteger totalTest = new AtomicInteger(0);
+    public AtomicInteger failedTest = new AtomicInteger(0);
+    public AtomicInteger totalClassTest = new AtomicInteger(0);
 
-    public TestRunner(int threadCount) throws IllegalArgumentException {
+    public TestRunner(int threadCount, int testsCount) throws IllegalArgumentException {
         if (threadCount <= 0) {
             throw new IllegalArgumentException("The number of threads must be a positive integer");
         }
 
-        testsQueue = new TestsQueue();
+        testsQueue = new TestsQueue(() -> totalClassTest.get() == testsCount);
 
         threads = new Thread[threadCount];
         for (int i = 0; i < threadCount; i++) {
@@ -33,6 +34,7 @@ public class TestRunner {
 
     public void addTestClass(String className) {
         testsQueue.putTest(className);
+        totalClassTest.incrementAndGet();
     }
 
     public void start() {
@@ -56,6 +58,7 @@ public class TestRunner {
 
         runTestList(testClass, testMethods, beforeMethods, afterMethods);
     }
+
     private void runTestList(
             Class<?> source,
             List<Method> testMethods,
@@ -63,7 +66,6 @@ public class TestRunner {
             List<Method> afterMethods
     ) {
         if (testMethods == null || testMethods.isEmpty()) return;
-
         for (Method m : testMethods) {
             if (Utils.methodHasIncompatibleAnnotations(m)) {
                 System.out.println("Test <" + m.getName() + "> can't be started because it has incompatible annotations: " +
