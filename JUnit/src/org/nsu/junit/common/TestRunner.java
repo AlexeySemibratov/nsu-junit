@@ -83,6 +83,8 @@ public class TestRunner {
             }
             long startTime = System.nanoTime();
 
+            Test ann = m.getAnnotation(Test.class);
+            Class<?> expectedException = ann.expectedException();
             try {
                 if (!runMethodsOnInstance(beforeMethods, instance, "Exception in @Before method:")) {
                     return;
@@ -90,18 +92,16 @@ public class TestRunner {
                     m.invoke(instance);
                 }
             } catch (InvocationTargetException e) {
-                Test ann = m.getAnnotation(Test.class);
-                Class<?> expectedException = ann.expectedException();
-
                 if (expectedException == Test.DefaultException.class) {
                     failTest(result, e.getCause().getMessage());
                 } else if (expectedException != e.getCause().getClass()) {
-                    String message = "Catch <" +
-                            e.getCause().getClass().getName() +
-                            "> but expected <" +
-                            expectedException.getName() +
-                            ">. \n" +
-                            e.getCause().getMessage();
+                    String message =
+                            "Catch <" +
+                                    e.getCause().getClass().getName() +
+                                    "> but expected <" +
+                                    expectedException.getName() +
+                                    ">. \n" +
+                                    e.getCause().getMessage();
 
                     failTest(result, message);
                 } else {
@@ -110,7 +110,13 @@ public class TestRunner {
             } catch (IllegalAccessException | IllegalArgumentException e) {
                 e.printStackTrace();
             }
-
+            if (!result.isFailed && expectedException != Test.DefaultException.class) {
+                String message =
+                        "Expected <" +
+                                expectedException.getName() +
+                                "> but nothing was thrown.";
+                failTest(result, message);
+            }
             totalTest.incrementAndGet();
             if (result.isFailed) {
                 failedTest.incrementAndGet();
@@ -148,9 +154,7 @@ public class TestRunner {
         synchronized (System.out) {
             System.out.println(message);
             System.out.println("Error while try to execute <" + method + ">");
-            if (throwable.getCause() != null) {
-                throwable.getCause().printStackTrace(System.out);
-            }
+            throwable.printStackTrace(System.out);
         }
     }
 
